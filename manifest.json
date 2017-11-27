@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "Alexa Rank",
+  "version": "0.9.0",
+  "description": "",
+  "homepage_url": "https://github.com/fuyu",
+  "icons": {
+    "48": "icons/extension.png"
+  },
+
+  "permissions": [
+    "tabs",
+    "webRequest",
+    "<all_urls>"
+  ],
+
+  "page_action": {
+    "browser_style": true,
+    "default_icon": "icons/address-bar.png",
+    "default_title": "Alexa rank",
+    "default_popup": "popup/details.html"
+  },
+
+  "background": {
+    "scripts": ["background.js"]
+  }
+
+}
