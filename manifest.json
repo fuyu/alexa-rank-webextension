@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Alexa Rank",
   "version": "0.9.0",
-  "description": "",
+  "description": "Minimalistic Alexa rank",
   "homepage_url": "https://github.com/fuyu",
   "icons": {
     "48": "icons/extension.png"
