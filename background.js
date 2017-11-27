@@ -87,7 +87,7 @@ function getIconImageData(stats) {
   var imageWidth = 32;
   var imageHeight = 32;
   var markerSize = 8;
-  var font = "16pt Arial";
+  var font = "15pt Arial";
   var rank = parseInt(stats.rank);
 
   if (isNaN(rank)) {
@@ -99,47 +99,32 @@ function getIconImageData(stats) {
 
   var addText = (ctx, text, centerX, centerY) => {
     ctx.font = font;
-    ctx.fillStyle = "black";
+    //ctx.fillStyle = "black";
+    ctx.fillStyle = "#444";
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     var maxWidth = imageWidth
     ctx.fillText(text, centerX, centerY, maxWidth);
   }
 
-  var addMarker = (ctx, centerX, centerY, size) => {
-    var radius = size / 2;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, false);
-    ctx.fillStyle = "rgb(94, 94, 94)";
-    ctx.fill();
-  }
-
   var shortTextForNumber = (number) => {
     if (number < 1000) {
       return number.toString()
     }
-    else if (number < 10000) {
-      return (Math.floor(number / 100) / 10).toString()
+    else if (number < 100000) {
+      return Math.floor(number / 1000).toString() + "k"
     }
     else if (number < 1000000) {
-      return Math.floor(number / 1000).toString()
+      return Math.floor(number / 100000).toString() + "hk"
     }
     else {
-      return Math.floor(number / 1000000).toString()
+      return Math.floor(number / 1000000).toString() + "m"
     }
   }
 
-  var textOffset = rank > 999 ? -4 : +2; // trying to align text beautifully here
+  var textOffset = 2; // trying to align text beautifully here
   var text = shortTextForNumber(rank)
   addText(ctx, text, imageWidth / 2, imageHeight / 2 + textOffset)
-
-  if (rank > 999999) {
-    addMarker(ctx, imageWidth / 2 - 5, imageHeight - markerSize / 2, markerSize)
-    addMarker(ctx, imageWidth / 2 + 5, imageHeight - markerSize / 2, markerSize)
-  }
-  else if (rank > 999) {
-    addMarker(ctx, imageWidth / 2, imageHeight - markerSize / 2, markerSize)
-  }
 
   return new Promise((resolve, reject) => {
     try {
