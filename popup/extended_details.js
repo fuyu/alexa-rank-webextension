@@ -13,7 +13,7 @@ activeTabsPromise.then((tabs) => {
 
     var menu = document.querySelector(".panel-section-list")
 
-    var getListItem = (textElement) => {
+    var getListItem = (textElement, clickMethod) => {
       var item = document.createElement("div");
       var icon = document.createElement("div");
       var text = document.createElement("div");
@@ -23,10 +23,14 @@ activeTabsPromise.then((tabs) => {
       text.append(textElement);
       item.append(icon);
       item.append(text);
+      if (clickMethod) {
+        item.addEventListener("click", clickMethod)
+      }
       return item
     }
 
-    var item1 = getListItem("Alexa rank: " + formatNumber(stats.rank));
+    var rankFormatted = stats.rank !== null ? formatNumber(stats.rank) : "n/a";
+    var item1 = getListItem("Alexa rank: " + rankFormatted);
     menu.append(item1);
 
     if (stats.countryName) {
@@ -48,6 +52,12 @@ activeTabsPromise.then((tabs) => {
       var item3 = getListItem("Country rank: " + formatNumber(stats.countryRank));
       menu.append(item3);
     }
+
+    //var item4 = getListItem("Options", () => {
+    //  console.log("Go to options")
+    //  return browser.runtime.openOptionsPage()
+    //});
+    //menu.append(item4);
   })
   .catch(e => {
     console.log("Response error:", e)

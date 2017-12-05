@@ -87,12 +87,8 @@ function getIconImageData(stats) {
   var imageWidth = 32;
   var imageHeight = 32;
   var markerSize = 8;
-  var font = "15pt Arial";
-  var rank = parseInt(stats.rank);
-
-  if (isNaN(rank)) {
-    return Promise.reject("Invalid rank")
-  }
+  var font = "bold 15pt 'Arial'";
+  var rank = stats.rank !== null ? parseInt(stats.rank) : null;
 
   var canvas = document.createElement('canvas');
   var ctx = canvas.getContext('2d');
@@ -123,7 +119,7 @@ function getIconImageData(stats) {
   }
 
   var textOffset = 2; // trying to align text beautifully here
-  var text = shortTextForNumber(rank)
+  var text = rank !== null ? shortTextForNumber(rank) : "n/a";
   addText(ctx, text, imageWidth / 2, imageHeight / 2 + textOffset)
 
   return new Promise((resolve, reject) => {
@@ -137,14 +133,6 @@ function getIconImageData(stats) {
     }
   })
 }
-
-/*
-On page action click, navigate the corresponding tab to the cat gifs.
-*/
-browser.pageAction.onClicked.addListener(() => {
-  console.log("clicked");
-  browser.tabs.update({url: CATGIFS});
-});
 
 
 
@@ -194,7 +182,9 @@ function getAlexaStatsFromApi(host) {
         var countryTag      = rootElement.getElementsByTagName('COUNTRY')[0];
 
         if (!popularityTag) {
-          reject("Alexa info parse error")
+          resolve({
+            rank: null
+          })
           return
         }
 
