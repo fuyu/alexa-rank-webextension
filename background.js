@@ -1,3 +1,9 @@
+/*
+ * Alexa rank webextension
+ * Author: Maksym Stefanchuk <objectivem@gmail.com>
+ * Date: 2017-12-05
+ *
+ */
 "use strict";
 
 // Update when background.js is run

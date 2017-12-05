@@ -1,3 +1,9 @@
+/*
+ * Alexa rank webextension
+ * Author: Maksym Stefanchuk <objectivem@gmail.com>
+ * Date: 2017-12-05
+ *
+ */
 "use strict";
 
 var activeTabsPromise = browser.tabs.query({active: true, currentWindow: true});
