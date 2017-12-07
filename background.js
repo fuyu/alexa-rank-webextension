@@ -37,6 +37,17 @@ browser.tabs.onActivated.addListener((activeInfo) => {
 });
 
 
+function shouldShowForUrl(url) {
+  var servicePageRegex = new RegExp("^about:");
+  var ipRegex = new RegExp("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
+  var regexes = [servicePageRegex, ipRegex];
+  if (!url) {
+    return false
+  }
+  var matches = regexes.map(regex => regex.test(url))
+  return matches.filter(m => m).length === 0
+}
+
 function handleMessage(request, sender) {
   console.log("Received message:", request);
   if (request.message !== "get_alexa_stats") {
@@ -48,7 +59,7 @@ function handleMessage(request, sender) {
   var tabId = request.tabId;
   var tabPromise = browser.tabs.get(tabId);
   return tabPromise.then(tab => {
-    if (!tab.url || tab.url.match(/^about:/) !== null) {
+    if (!tab.url || !shouldShowForUrl(tab.url)) {
       return Promise.resolve({})
     }
     else {
@@ -64,7 +75,7 @@ function updateStatsForTab(tabId) {
   var tabPromise = browser.tabs.get(tabId);
   return tabPromise.then(tab => {
     //console.log(tab);
-    if (!tab.url || tab.url.match(/^about:/) !== null) {
+    if (!tab.url || !shouldShowForUrl(tab.url)) {
       //console.log("Not webpage")
       browser.pageAction.hide(tabId);
     }
