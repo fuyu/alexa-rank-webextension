@@ -8,15 +8,17 @@
 
 // Update when background.js is run
 var activeTabsPromise = browser.tabs.query({active: true, currentWindow: true});
-activeTabsPromise.then((tabs) => {
-  updateStatsForTab(tabs[0].id)
+Promise.all([activeTabsPromise, getOptions()]).then(res => {
+  var tabs = res[0];
+  var options = res[1];
+  updateStatsForTab(tabs[0].id, options)
 })
 
 // Listen to events when tab is updated
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log("tabs.onUpdated", tabId, changeInfo, tab);
   if (tab.active) {
-    updateStatsForTab(tabId)
+    return getOptions().then(options => updateStatsForTab(tabId, options))
   }
   //if (!changeInfo.url) {
   //  return;
@@ -33,8 +35,14 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 browser.tabs.onActivated.addListener((activeInfo) => {
   console.log("tab.onActivated", activeInfo)
   //restartAlarm(activeInfo.tabId);
-  updateStatsForTab(activeInfo.tabId)
+  //updateStatsForTab(activeInfo.tabId)
+  return getOptions().then(options => updateStatsForTab(activeInfo.tabId, options))
 });
+
+// Listen when options change
+//browser.storage.onChanged.addListener((changedInfo) => {
+//  console.log("options changed:", changedInfo)
+//})
 
 
 function shouldShowForUrl(url) {
@@ -71,7 +79,7 @@ function handleMessage(request, sender) {
 browser.runtime.onMessage.addListener(handleMessage);
 
 
-function updateStatsForTab(tabId) {
+function updateStatsForTab(tabId, options) {
   var tabPromise = browser.tabs.get(tabId);
   return tabPromise.then(tab => {
     //console.log(tab);
@@ -84,7 +92,7 @@ function updateStatsForTab(tabId) {
       //console.log("host:", host)
 
       return getAlexaStatsCached(host).then(stats => {
-        return getIconImageData(stats).then(imageData => {
+        return getIconImageData(stats, options).then(imageData => {
           browser.pageAction.setIcon({
             imageData: imageData,
             tabId: tabId
@@ -100,20 +108,20 @@ function updateStatsForTab(tabId) {
   })
 }
 
-function getIconImageData(stats) {
+function getIconImageData(stats, options) {
   var imageWidth = 32;
   var imageHeight = 32;
   var markerSize = 8;
   var font = "bold 15pt 'Arial'";
   var rank = stats.rank !== null ? parseInt(stats.rank) : null;
+  var color = options.addressbar_text_color ? options.addressbar_text_color : "#444";
 
   var canvas = document.createElement('canvas');
   var ctx = canvas.getContext('2d');
 
   var addText = (ctx, text, centerX, centerY) => {
     ctx.font = font;
-    //ctx.fillStyle = "black";
-    ctx.fillStyle = "#444";
+    ctx.fillStyle = color;
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     var maxWidth = imageWidth
@@ -151,6 +159,10 @@ function getIconImageData(stats) {
   })
 }
 
+
+function getOptions() {
+  return browser.storage.local.get("addressbar_text_color")
+}
 
 
 function getHostnameFromUrl(url) {
