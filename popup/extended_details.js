@@ -36,7 +36,9 @@ activeTabsPromise.then((tabs) => {
     }
 
     var rankFormatted = stats.rank !== null ? formatNumber(stats.rank) : "n/a";
-    var item1 = getListItem("Alexa rank: " + rankFormatted);
+    var item1 = getListItem("Alexa rank: " + rankFormatted,()=>{
+    	window.open('https://www.alexa.com/siteinfo/'+stats.host, '_blank');
+    });
     menu.append(item1);
 
     if (stats.countryName) {
