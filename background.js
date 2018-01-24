@@ -218,6 +218,7 @@ function getAlexaStatsFromApi(host) {
         }
 
         var stats = {
+          host: 		host,
           rank:         popularityTag.getAttribute('TEXT'),
           reach:        reachTag ? reachTag.getAttribute('RANK') : null,
           rankDelta:    rankTag ? rankTag.getAttribute('DELTA') : null,
