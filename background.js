@@ -73,6 +73,9 @@ function handleMessage(request, sender) {
     else {
       var host = getHostnameFromUrl(tab.url)
       return getAlexaStatsCached(host)
+        .then(stats => {
+          return Object.assign({}, stats, { host: host })
+        })
     }
   })
 }
