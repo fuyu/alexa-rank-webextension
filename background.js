@@ -191,8 +191,11 @@ function getAlexaStatsCached(host) {
   }
 }
 
+var useHtml = false; //Fix for IPs that are blocked on xml.alexa.com
 
 function getAlexaStatsFromApi(host) {
+  if (useHtml) return getAlexaStatsFromHtml(host);
+	
   return new Promise((resolve, reject) => {
     var url = "http://xml.alexa.com/data?cli=10&dat=nsa&url=" + host;
     var xhr = new XMLHttpRequest();
@@ -200,11 +203,18 @@ function getAlexaStatsFromApi(host) {
     xhr.onreadystatechange = () => {
       if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         //console.log(xhr.responseText);
+		
+		if (xhr.responseText == "Okay") {
+		  useHtml = true;
+          return getAlexaStatsFromHtml(host);
+		}
+			
         var responseXML = xhr.responseXML;
         var rootElement = responseXML.documentElement;
 
         if (!rootElement || "parseerror" == rootElement.tagName) {
           reject("Alexa info unavailable");
+		  useHtml = true;
           return
         }
 
@@ -229,6 +239,68 @@ function getAlexaStatsFromApi(host) {
           countryRank:  countryTag ? countryTag.getAttribute('RANK') : null
         }
         resolve(stats)
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE) {
+        reject("Request failed")
+      }
+    }
+    xhr.send();
+  })
+}
+
+
+function getAlexaStatsFromHtml(host) {
+  console.log("getAlexaStatsFromHtml");
+
+  return new Promise((resolve, reject) => {
+    var url = "https://www.alexa.com/minisiteinfo/" + host;
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true); // true for asynchronous
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        //console.log(xhr.responseText);
+
+		var html = new DOMParser().parseFromString(xhr.responseText, "text/html");
+
+        var popularityTag   = html.getElementsByClassName( 'data down' )[0].getElementsByTagName('a')[0].textContent
+		popularityTag = popularityTag.replace(",", "");
+		
+        var reachTag        = 0;
+        var rankTag         = 0;
+		
+        var countryCode      = html.getElementsByClassName('label')[1].childNodes[1].textContent
+        //console.log('countryCode:',countryCode);
+		
+        var countryName = html.getElementsByClassName('label')[1].childNodes[1].getAttribute("title");
+        //console.log('countryName:',countryName);
+		
+		var countryRank = html.getElementsByClassName('data')[1].textContent
+		countryRank = countryRank.replace(",", "");
+        //console.log('countryRank:',countryRank);
+		
+		var linksCount = html.getElementsByClassName('data')[2].textContent;
+		linksCount = linksCount.replace(",", "");
+        //console.log('linksCount:',linksCount);
+
+		if (typeof popularityTag === 'undefined' || popularityTag === null) {
+          resolve({
+            rank: null
+          })
+          return
+        }
+
+        var stats = {
+          rank:         popularityTag,
+          reach:        reachTag ? reachTag : null,
+          rankDelta:    rankTag ? rankTag : null,
+          countryCode:  countryCode,
+          countryName:  countryName,
+          countryRank:  countryRank,
+		  linksCount: 	linksCount
+        }
+        resolve(stats)
+        //console.log('Done:',popularityTag);
+		
       }
       else if (xhr.readyState == XMLHttpRequest.DONE) {
         reject("Request failed")
