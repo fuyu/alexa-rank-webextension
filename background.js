@@ -176,26 +176,37 @@ function getHostnameFromUrl(url) {
 
 
 var alexaCache = {};
-function getAlexaStatsCached(host) {
+async function getAlexaStatsCached(host) {
   var stats = alexaCache[host];
   if (stats) {
     console.log("Got Alexa stats from cache:", stats)
     return Promise.resolve(stats)
   }
   else {
-    return getAlexaStatsFromApi(host).then(stats => {
-      console.log("Got Alexa stats from api:", stats)
-      alexaCache[host] = stats
-      return stats
-    })
+    var [xmlApiStats, xmlApiError] = await getAlexaStatsFromApi(host);
+    if (xmlApiError) {
+      console.log("Alexa XML API error:", xmlApiError);
+      var [htmlApiStats, htmlApiError] = await getAlexaStatsFromHtml(host);
+      if (htmlApiError) {
+        console.log("Alexa HTML fetch error:", htmlApiError);
+        return Promise.reject("Failed to get stats from Alexa");
+      }
+      else {
+        alexaCache[host] = htmlApiStats;
+        return htmlApiStats;
+      }
+    }
+    else {
+      alexaCache[host] = xmlApiStats;
+      return xmlApiStats;
+    }
   }
 }
 
-var useHtml = false; //Fix for IPs that are blocked on xml.alexa.com
+const ALEXA_XML_API_BLOCKED_ERROR = "ALEXA_XML_API_BLOCKED_ERROR";
+const ALEXA_XML_API_UNAVAILANBLE_ERROR = "ALEXA_XML_API_UNAVAILANBLE_ERROR";
 
 function getAlexaStatsFromApi(host) {
-  if (useHtml) return getAlexaStatsFromHtml(host);
-	
   return new Promise((resolve, reject) => {
     var url = "http://xml.alexa.com/data?cli=10&dat=nsa&url=" + host;
     var xhr = new XMLHttpRequest();
@@ -203,19 +214,15 @@ function getAlexaStatsFromApi(host) {
     xhr.onreadystatechange = () => {
       if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         //console.log(xhr.responseText);
-		
-		if (xhr.responseText == "Okay") {
-		  useHtml = true;
-          return getAlexaStatsFromHtml(host);
-		}
-			
+
+        if (xhr.responseXML === null || !xhr.responseXML.documentElement) {
+          return resolve([null, {reason: ALEXA_XML_API_BLOCKED_ERROR}]);
+        }
+
         var responseXML = xhr.responseXML;
         var rootElement = responseXML.documentElement;
-
-        if (!rootElement || "parseerror" == rootElement.tagName) {
-          reject("Alexa info unavailable");
-		  useHtml = true;
-          return
+        if ("parseerror" == rootElement.tagName) {
+          return resolve([null, {reason: ALEXA_XML_API_UNAVAILANBLE_ERROR}]);
         }
 
         var popularityTag   = rootElement.getElementsByTagName('POPULARITY')[0];
@@ -224,10 +231,7 @@ function getAlexaStatsFromApi(host) {
         var countryTag      = rootElement.getElementsByTagName('COUNTRY')[0];
 
         if (!popularityTag) {
-          resolve({
-            rank: null
-          })
-          return
+          return resolve([{ rank: null }, null])
         }
 
         var stats = {
@@ -238,7 +242,7 @@ function getAlexaStatsFromApi(host) {
           countryName:  countryTag ? countryTag.getAttribute('NAME') : null,
           countryRank:  countryTag ? countryTag.getAttribute('RANK') : null
         }
-        resolve(stats)
+        resolve([stats, null])
       }
       else if (xhr.readyState == XMLHttpRequest.DONE) {
         reject("Request failed")
@@ -247,7 +251,6 @@ function getAlexaStatsFromApi(host) {
     xhr.send();
   })
 }
-
 
 function getAlexaStatsFromHtml(host) {
   console.log("getAlexaStatsFromHtml");
@@ -260,47 +263,42 @@ function getAlexaStatsFromHtml(host) {
       if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         //console.log(xhr.responseText);
 
-		var html = new DOMParser().parseFromString(xhr.responseText, "text/html");
-
-        var popularityTag   = html.getElementsByClassName( 'data down' )[0].getElementsByTagName('a')[0].textContent
-		popularityTag = popularityTag.replace(",", "");
-		
-        var reachTag        = 0;
-        var rankTag         = 0;
-		
-        var countryCode      = html.getElementsByClassName('label')[1].childNodes[1].textContent
-        //console.log('countryCode:',countryCode);
-		
-        var countryName = html.getElementsByClassName('label')[1].childNodes[1].getAttribute("title");
-        //console.log('countryName:',countryName);
-		
-		var countryRank = html.getElementsByClassName('data')[1].textContent
-		countryRank = countryRank.replace(",", "");
-        //console.log('countryRank:',countryRank);
-		
-		var linksCount = html.getElementsByClassName('data')[2].textContent;
-		linksCount = linksCount.replace(",", "");
-        //console.log('linksCount:',linksCount);
-
-		if (typeof popularityTag === 'undefined' || popularityTag === null) {
-          resolve({
-            rank: null
+        const findStatsTdElement = (tableElement, alexaStatsLabel) => {
+          return Array.from(table.getElementsByTagName("td")).find(td => {
+            return td.querySelector("div.label").textContent.trim().match(alexaStatsLabel) !== null
           })
-          return
         }
 
+        const strToInt = (str) => {
+          // Numbers are displayed as strings with delimeters (e.g. 123,564).
+          return parseInt(str.trim().replace(/,/g, ""))
+        }
+
+        var html = new DOMParser().parseFromString(xhr.responseText, "text/html");
+        const table = html.getElementById("siteStats");
+
+        const globalRankStatsTd = findStatsTdElement(table, "Alexa Traffic Rank");
+        const globalRank = globalRankStatsTd ? strToInt(globalRankStatsTd.querySelector("div.data a").textContent) : null;
+
+        const countryStatsTd = findStatsTdElement(table, "Traffic Rank in");
+        const countryRank = countryStatsTd ? strToInt(countryStatsTd.querySelector("div.data a").textContent) : null;
+        const countryCode = countryStatsTd ? countryStatsTd.querySelector("div.label a").textContent.trim() : null;
+        const countryName = countryStatsTd ? countryStatsTd.querySelector("div.label a").getAttribute("title").trim() : null;
+
+        const sitesLinkingInStatsTd = findStatsTdElement(table, "Sites Linking In");
+        const sitesLinkingIn = sitesLinkingInStatsTd ? strToInt(sitesLinkingInStatsTd.querySelector("div.data a").textContent) : null;
+
         var stats = {
-          rank:         popularityTag,
-          reach:        reachTag ? reachTag : null,
-          rankDelta:    rankTag ? rankTag : null,
+          rank:         globalRank,
+          reach:        null,
+          rankDelta:    null,
           countryCode:  countryCode,
           countryName:  countryName,
           countryRank:  countryRank,
-		  linksCount: 	linksCount
+          linksCount:   sitesLinkingIn
         }
-        resolve(stats)
-        //console.log('Done:',popularityTag);
-		
+        console.log(stats);
+        resolve([stats, null])
       }
       else if (xhr.readyState == XMLHttpRequest.DONE) {
         reject("Request failed")
