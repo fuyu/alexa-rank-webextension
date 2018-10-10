@@ -176,21 +176,35 @@ function getHostnameFromUrl(url) {
 
 
 var alexaCache = {};
-function getAlexaStatsCached(host) {
+async function getAlexaStatsCached(host) {
   var stats = alexaCache[host];
   if (stats) {
     console.log("Got Alexa stats from cache:", stats)
     return Promise.resolve(stats)
   }
   else {
-    return getAlexaStatsFromApi(host).then(stats => {
-      console.log("Got Alexa stats from api:", stats)
-      alexaCache[host] = stats
-      return stats
-    })
+    var [xmlApiStats, xmlApiError] = await getAlexaStatsFromApi(host);
+    if (xmlApiError) {
+      console.log("Alexa XML API error:", xmlApiError);
+      var [htmlApiStats, htmlApiError] = await getAlexaStatsFromHtml(host);
+      if (htmlApiError) {
+        console.log("Alexa HTML fetch error:", htmlApiError);
+        return Promise.reject("Failed to get stats from Alexa");
+      }
+      else {
+        alexaCache[host] = htmlApiStats;
+        return htmlApiStats;
+      }
+    }
+    else {
+      alexaCache[host] = xmlApiStats;
+      return xmlApiStats;
+    }
   }
 }
 
+const ALEXA_XML_API_BLOCKED_ERROR = "ALEXA_XML_API_BLOCKED_ERROR";
+const ALEXA_XML_API_UNAVAILANBLE_ERROR = "ALEXA_XML_API_UNAVAILANBLE_ERROR";
 
 function getAlexaStatsFromApi(host) {
   return new Promise((resolve, reject) => {
@@ -200,12 +214,15 @@ function getAlexaStatsFromApi(host) {
     xhr.onreadystatechange = () => {
       if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
         //console.log(xhr.responseText);
+
+        if (xhr.responseXML === null || !xhr.responseXML.documentElement) {
+          return resolve([null, {reason: ALEXA_XML_API_BLOCKED_ERROR}]);
+        }
+
         var responseXML = xhr.responseXML;
         var rootElement = responseXML.documentElement;
-
-        if (!rootElement || "parseerror" == rootElement.tagName) {
-          reject("Alexa info unavailable");
-          return
+        if ("parseerror" == rootElement.tagName) {
+          return resolve([null, {reason: ALEXA_XML_API_UNAVAILANBLE_ERROR}]);
         }
 
         var popularityTag   = rootElement.getElementsByTagName('POPULARITY')[0];
@@ -214,10 +231,7 @@ function getAlexaStatsFromApi(host) {
         var countryTag      = rootElement.getElementsByTagName('COUNTRY')[0];
 
         if (!popularityTag) {
-          resolve({
-            rank: null
-          })
-          return
+          return resolve([{ rank: null }, null])
         }
 
         var stats = {
@@ -228,7 +242,63 @@ function getAlexaStatsFromApi(host) {
           countryName:  countryTag ? countryTag.getAttribute('NAME') : null,
           countryRank:  countryTag ? countryTag.getAttribute('RANK') : null
         }
-        resolve(stats)
+        resolve([stats, null])
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE) {
+        reject("Request failed")
+      }
+    }
+    xhr.send();
+  })
+}
+
+function getAlexaStatsFromHtml(host) {
+  console.log("getAlexaStatsFromHtml");
+
+  return new Promise((resolve, reject) => {
+    var url = "https://www.alexa.com/minisiteinfo/" + host;
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true); // true for asynchronous
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        //console.log(xhr.responseText);
+
+        const findStatsTdElement = (tableElement, alexaStatsLabel) => {
+          return Array.from(table.getElementsByTagName("td")).find(td => {
+            return td.querySelector("div.label").textContent.trim().match(alexaStatsLabel) !== null
+          })
+        }
+
+        const strToInt = (str) => {
+          // Numbers are displayed as strings with delimeters (e.g. 123,564).
+          return parseInt(str.trim().replace(/,/g, ""))
+        }
+
+        var html = new DOMParser().parseFromString(xhr.responseText, "text/html");
+        const table = html.getElementById("siteStats");
+
+        const globalRankStatsTd = findStatsTdElement(table, "Alexa Traffic Rank");
+        const globalRank = globalRankStatsTd ? strToInt(globalRankStatsTd.querySelector("div.data a").textContent) : null;
+
+        const countryStatsTd = findStatsTdElement(table, "Traffic Rank in");
+        const countryRank = countryStatsTd ? strToInt(countryStatsTd.querySelector("div.data a").textContent) : null;
+        const countryCode = countryStatsTd ? countryStatsTd.querySelector("div.label a").textContent.trim() : null;
+        const countryName = countryStatsTd ? countryStatsTd.querySelector("div.label a").getAttribute("title").trim() : null;
+
+        const sitesLinkingInStatsTd = findStatsTdElement(table, "Sites Linking In");
+        const sitesLinkingIn = sitesLinkingInStatsTd ? strToInt(sitesLinkingInStatsTd.querySelector("div.data a").textContent) : null;
+
+        var stats = {
+          rank:         globalRank,
+          reach:        null,
+          rankDelta:    null,
+          countryCode:  countryCode,
+          countryName:  countryName,
+          countryRank:  countryRank,
+          linksCount:   sitesLinkingIn
+        }
+        console.log(stats);
+        resolve([stats, null])
       }
       else if (xhr.readyState == XMLHttpRequest.DONE) {
         reject("Request failed")

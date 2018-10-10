@@ -52,13 +52,24 @@ activeTabsPromise.then((tabs) => {
         span1.append(image)
       }
       //var item2 = getListItem("Country: " + stats.countryName);
-      var item2 = getListItem(span1);
+      var item2 = getListItem(span1, () => {
+        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+      });
       menu.append(item2);
     }
 
     if (stats.countryRank) {
-      var item3 = getListItem("Country rank: " + formatNumber(stats.countryRank));
+      var item3 = getListItem("Country rank: " + formatNumber(stats.countryRank), () => {
+        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+      });
       menu.append(item3);
+    }
+
+    if (stats.linksCount) {
+      var item4 = getListItem("Links: " + formatNumber(stats.linksCount), () => {
+        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+      });
+      menu.append(item4);
     }
 
     //var item4 = getListItem("Options", () => {
