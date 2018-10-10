@@ -47,7 +47,7 @@ browser.tabs.onActivated.addListener((activeInfo) => {
 
 function shouldShowForUrl(url) {
   var servicePageRegex = new RegExp("^about:");
-  var ipRegex = new RegExp("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
+  var ipRegex = new RegExp("^http://\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
   var regexes = [servicePageRegex, ipRegex];
   if (!url) {
     return false
@@ -87,7 +87,7 @@ function updateStatsForTab(tabId, options) {
   return tabPromise.then(tab => {
     //console.log(tab);
     if (!tab.url || !shouldShowForUrl(tab.url)) {
-      //console.log("Not webpage")
+      console.log("Not webpage")
       browser.pageAction.hide(tabId);
     }
     else {
