@@ -3,7 +3,7 @@
   "name": "Alexa Rank",
   "author": "Maksym Stefanchuk",
   "homepage_url": "https://github.com/fuyu/Googalexa",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Minimalist Alexa rank",
   "icons": {
     "48": "icons/extension.png"
