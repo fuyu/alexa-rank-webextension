@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Alexa Rank",
   "author": "Maksym Stefanchuk",
-  "homepage_url": "https://github.com/fuyu/Googalexa",
+  "homepage_url": "https://github.com/fuyu/alexa-rank-webextension",
   "version": "0.9.2",
   "description": "Minimalist Alexa rank",
   "icons": {
