@@ -37,7 +37,7 @@ activeTabsPromise.then((tabs) => {
 
     var rankFormatted = stats.rank !== null ? formatNumber(stats.rank) : "n/a";
     var item1 = getListItem("Alexa rank: " + rankFormatted, () => {
-      window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+      browser.tabs.create({url: 'https://www.alexa.com/siteinfo/' + stats.host})
     });
     menu.append(item1);
 
@@ -53,21 +53,21 @@ activeTabsPromise.then((tabs) => {
       }
       //var item2 = getListItem("Country: " + stats.countryName);
       var item2 = getListItem(span1, () => {
-        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+        browser.tabs.create({url: 'https://www.alexa.com/siteinfo/' + stats.host})
       });
       menu.append(item2);
     }
 
     if (stats.countryRank) {
       var item3 = getListItem("Country rank: " + formatNumber(stats.countryRank), () => {
-        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+        browser.tabs.create({url: 'https://www.alexa.com/siteinfo/' + stats.host})
       });
       menu.append(item3);
     }
 
     if (stats.linksCount) {
       var item4 = getListItem("Links: " + formatNumber(stats.linksCount), () => {
-        window.open('https://www.alexa.com/siteinfo/' + stats.host, '_blank');
+        browser.tabs.create({url: 'https://www.alexa.com/siteinfo/' + stats.host})
       });
       menu.append(item4);
     }
