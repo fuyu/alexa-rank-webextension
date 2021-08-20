@@ -20,15 +20,11 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.active) {
     return getOptions().then(options => updateStatsForTab(tabId, options))
   }
-  //if (!changeInfo.url) {
-  //  return;
-  //}
-  //var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
-  //gettingActiveTab.then((tabs) => {
-  //  if (tabId == tabs[0].id) {
-  //    restartAlarm(tabId);
-  //  }
-  //});
+}, {
+  // Filter events by 'status' property updates to reduce the number of calls.
+  // See:
+  // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onUpdated
+  properties: ["status"]
 })
 
 // Listen to events when new tab becomes active
@@ -179,29 +175,75 @@ var alexaCache = {};
 async function getAlexaStatsCached(host) {
   var stats = alexaCache[host];
   if (stats) {
-    console.log("Got Alexa stats from cache:", stats)
+    console.log(`${host} - got Alexa stats from cache: ${JSON.stringify(stats, null, 2)}`)
     return Promise.resolve(stats)
   }
   else {
+    // 1
+    console.log("Trying ALEXA API...");
     var [xmlApiStats, xmlApiError] = await getAlexaStatsFromApi(host);
     if (xmlApiError) {
       console.log("Alexa XML API error:", xmlApiError);
-      var [htmlApiStats, htmlApiError] = await getAlexaStatsFromHtml(host);
-      if (htmlApiError) {
-        console.log("Alexa HTML fetch error:", htmlApiError);
-        return Promise.reject("Failed to get stats from Alexa");
+
+      // 2
+      console.log("Trying PROXY API...");
+      var [proxyApiStats, proxyApiError] = await getAlexaStatsFromProxyApi(host);
+      if (proxyApiError) {
+        console.log("Alexa PROXY API error:", proxyApiError);
+
+        // 3
+        console.log("Trying HTML request...");
+        var [htmlApiStats, htmlApiError] = await getAlexaStatsFromHtml(host);
+        if (htmlApiError) {
+          console.log("Alexa HTML fetch error:", htmlApiError);
+          return Promise.reject("Failed to get stats from Alexa");
+        }
+        else {
+          console.log("Received stats from HTML:", htmlApiStats);
+          alexaCache[host] = htmlApiStats;
+          return htmlApiStats;
+        }
       }
       else {
-        alexaCache[host] = htmlApiStats;
-        return htmlApiStats;
+        console.log("Received stats from PROXY API:", proxyApiStats);
+        alexaCache[host] = proxyApiStats;
+        return proxyApiStats;
       }
     }
     else {
+      console.log("Received stats from ALEXA API:", xmlApiStats);
       alexaCache[host] = xmlApiStats;
       return xmlApiStats;
     }
   }
 }
+
+const PROXY_API_INVALID_REPONSE = "PROXY_API_INVALID_REPONSE"
+
+function getAlexaStatsFromProxyApi(host) {
+  return new Promise((resolve, reject) => {
+    var url = "https://ol7j2s7et1.execute-api.us-east-1.amazonaws.com/dev/?host=" + host;
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true); // true for asynchronous
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+        //console.log(xhr.responseText);
+        try {
+          const json = JSON.parse(xhr.responseText);
+          resolve([json, null])
+        }
+        catch (error) {
+          return resolve([null, {reason: PROXY_API_INVALID_REPONSE}]);
+        }
+      }
+      else if (xhr.readyState == XMLHttpRequest.DONE) {
+        reject("Request failed")
+      }
+    }
+    xhr.send();
+  })
+}
+
 
 const ALEXA_XML_API_BLOCKED_ERROR = "ALEXA_XML_API_BLOCKED_ERROR";
 const ALEXA_XML_API_UNAVAILANBLE_ERROR = "ALEXA_XML_API_UNAVAILANBLE_ERROR";
