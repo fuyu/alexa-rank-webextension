@@ -43,13 +43,19 @@ browser.tabs.onActivated.addListener((activeInfo) => {
 
 function shouldShowForUrl(url) {
   var servicePageRegex = new RegExp("^about:");
-  var ipRegex = new RegExp("^http://\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
-  var regexes = [servicePageRegex, ipRegex];
+  var ipRegex = new RegExp("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
+  var localhostRegex = new RegExp("localhost");
+  var regexes = [servicePageRegex, ipRegex, localhostRegex];
   if (!url) {
     return false
   }
   var matches = regexes.map(regex => regex.test(url))
-  return matches.filter(m => m).length === 0
+  if (matches.filter(m => m).length !== 0) {
+    return false
+  }
+
+  var someDomainRegex = new RegExp(".\\..")
+  return someDomainRegex.test(url)
 }
 
 function handleMessage(request, sender) {
@@ -88,7 +94,7 @@ function updateStatsForTab(tabId, options) {
     }
     else {
       var host = getHostnameFromUrl(tab.url)
-      //console.log("host:", host)
+      //console.log("HOST:", host)
 
       return getAlexaStatsCached(host).then(stats => {
         return getIconImageData(stats, options).then(imageData => {
