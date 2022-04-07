@@ -228,7 +228,7 @@ const PROXY_API_INVALID_REPONSE = "PROXY_API_INVALID_REPONSE"
 
 function getAlexaStatsFromProxyApi(host) {
   return new Promise((resolve, reject) => {
-    var url = "https://ol7j2s7et1.execute-api.us-east-1.amazonaws.com/dev/?host=" + host;
+    var url = "https://cj2bshy7hx6owv6e5mww3rckym0zuidu.lambda-url.us-east-1.on.aws/dev/?host=" + host;
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true); // true for asynchronous
     xhr.onreadystatechange = () => {
